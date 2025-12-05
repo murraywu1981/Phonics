@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自然拼读 Pro - V19 跨设备同步版</title>
+    <title>自然拼读 Pro - V18 </title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
-    <!-- 引入压缩库，让进度码更短 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
         :root {
             --primary: #7b61ff;
@@ -38,8 +36,8 @@
 
         /* 数据管理区 */
         .data-management { margin-top: 60px; padding-top: 30px; border-top: 2px dashed #e0e0e0; text-align: center; color: #666; }
-        .data-btn { background: white; border: 1px solid #ccc; padding: 10px 25px; border-radius: 25px; cursor: pointer; margin: 0 10px; font-size: 14px; color: #555; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .data-btn:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-2px); }
+        .data-btn { background: transparent; border: 1px solid #ccc; padding: 8px 20px; border-radius: 20px; cursor: pointer; margin: 0 10px; font-size: 14px; color: #555; transition: all 0.2s; }
+        .data-btn:hover { border-color: var(--primary); color: var(--primary); background: white; }
         .btn-reset { border-color: #ffccc7; color: var(--danger); }
         .btn-reset:hover { background: var(--danger); color: white; border-color: var(--danger); }
 
@@ -113,16 +111,11 @@
 
             <!-- 数据管理 -->
             <div class="data-management">
-                <h4 style="margin-bottom: 20px;">☁️ 进度同步与备份</h4>
-                <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-                    <button class="data-btn" onclick="DataManager.copyCode()">📋 复制进度码 (同步用)</button>
-                    <button class="data-btn" onclick="DataManager.loadCode()">📥 读取进度码</button>
-                    <button class="data-btn" onclick="DataManager.exportData()">💾 导出备份文件</button>
-                    <button class="data-btn btn-reset" onclick="DataManager.resetData()">⚠️ 清空重置</button>
-                </div>
-                <p style="font-size: 12px; margin-top: 10px; color: #999;">
-                    提示：在公司电脑点“复制进度码”，发到微信；回家电脑点“读取进度码”粘贴即可同步。
-                </p>
+                <h4>🛠️ 数据管理与备份</h4>
+                <button class="data-btn" onclick="DataManager.exportData()">⬇️ 导出进度</button>
+                <button class="data-btn" onclick="document.getElementById('backup-input').click()">⬆️ 导入进度</button>
+                <button class="data-btn btn-reset" onclick="DataManager.resetData()">⚠️ 重置所有数据</button>
+                <input type="file" id="backup-input" hidden accept=".json" onchange="DataManager.importData(this.files[0])">
             </div>
         </div>
     </div>
@@ -130,13 +123,18 @@
     <div id="view-import" class="view-section">
         <div class="dashboard-container">
             <h2 style="text-align:center">导入新单词</h2>
+            <p style="text-align:center; color:#666">
+                支持格式：<br>
+                1. 自动拆分：<code>apple 苹果</code><br>
+                2. <b>手动拆分</b>：<code>hand/some 英俊的</code> (推荐!)
+            </p>
             <div class="drop-zone" onclick="document.getElementById('file-input').click()">
                 <div style="font-size:30px">📄</div>
                 <div>点击上传 Word / Txt</div>
                 <div id="file-name" style="color:var(--primary); margin-top:10px; font-weight:bold;"></div>
             </div>
             <input type="file" id="file-input" hidden accept=".docx,.txt" onchange="Importer.handleFile(this.files[0])">
-            <textarea id="manual-text" placeholder="格式: apple 苹果" style="width:100%; height:150px; margin:20px 0; padding:10px; font-family: monospace;"></textarea>
+            <textarea id="manual-text" placeholder="示例：&#10;hand/some 英俊的&#10;ba/na/na 香蕉" style="width:100%; height:150px; margin:20px 0; padding:10px; font-family: monospace;"></textarea>
             <div style="text-align:center;">
                 <button class="menu-btn btn-primary" onclick="Importer.parseManual()">确定</button>
                 <button class="menu-btn" onclick="App.switchView('dashboard')">返回</button>
@@ -162,68 +160,64 @@
         const DICT = {"apple":"苹果","banana":"香蕉","cat":"猫","dog":"狗","elephant":"大象","fish":"鱼","girl":"女孩","hello":"你好","ice":"冰","juice":"果汁","kite":"风筝","lion":"狮子","monkey":"猴子","nose":"鼻子","orange":"橙子","pig":"猪","queen":"女王","rabbit":"兔子","sun":"太阳","tiger":"老虎","umbrella":"雨伞","van":"货车","water":"水","box":"盒子","yellow":"黄色","zoo":"动物园","welcome":"欢迎","student":"学生","teacher":"老师","school":"学校","pizza":"披萨","hamburger":"汉堡","computer":"电脑","friend":"朋友"};
 
         const DB = {
-            key: 'phonics_pro_v19_sync',
+            key: 'phonics_pro_v18_custom_split', // 数据库Key更新
             data: { lib: [], config: { planDays: 21 } },
             load() { const r = localStorage.getItem(this.key); if(r) this.data = JSON.parse(r); },
             save() { localStorage.setItem(this.key, JSON.stringify(this.data)); App.updateUI(); },
             add(list) {
                 let c = 0;
                 list.forEach(i => {
+                    // 如果已经存在，跳过
                     if(!this.data.lib.find(w=>w.word===i.word)) {
                         let trans = i.trans || DICT[i.word] || "暂无释义";
+                        // 核心：如果有手动拆分(i.chunks)，直接用；没有则自动拆分
                         const finalChunks = i.chunks || this.split(i.word);
-                        this.data.lib.push({ word: i.word, trans: trans, chunks: finalChunks, status: 0, err: 0 });
+                        this.data.lib.push({ 
+                            word: i.word, 
+                            trans: trans, 
+                            chunks: finalChunks, 
+                            status: 0, 
+                            err: 0 
+                        });
                         c++;
                     }
                 });
                 alert(`导入 ${c} 词`); this.save();
             },
+            // 自动拆分备用算法
             split(w) { return w.length<=4 ? [w] : (w.toLowerCase().match(/[^aeiouy]*[aeiouy]+(?:[^aeiouy]*$|[^aeiouy](?=[^aeiouy]))?/gi) || [w]); }
         };
 
-        // ==================== 数据管理：进度码功能 ====================
         const DataManager = {
-            // 1. 导出文件
             exportData() {
                 const dataStr = JSON.stringify(DB.data);
                 const blob = new Blob([dataStr], {type: "application/json"});
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `phonics_backup.json`;
+                a.download = `phonics_backup_${new Date().toISOString().slice(0,10)}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
             },
-            
-            // 2. 复制进度码 (压缩字符串)
-            copyCode() {
-                const json = JSON.stringify(DB.data);
-                const code = LZString.compressToEncodedURIComponent(json);
-                navigator.clipboard.writeText(code).then(() => {
-                    alert("✅ 进度码已复制！\n\n请发送给微信/QQ文件助手，在另一台电脑上使用【读取进度码】恢复。");
-                }).catch(err => {
-                    prompt("复制失败，请手动复制框内代码：", code);
-                });
+            importData(file) {
+                if(!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const newData = JSON.parse(e.target.result);
+                        if(newData.lib && Array.isArray(newData.lib)) {
+                            DB.data = newData;
+                            DB.save();
+                            alert("✅ 进度恢复成功！");
+                        } else { alert("❌ 文件格式错误"); }
+                    } catch(err) { alert("❌ 读取失败"); }
+                    document.getElementById('backup-input').value = '';
+                };
+                reader.readAsText(file);
             },
-
-            // 3. 读取进度码
-            loadCode() {
-                const code = prompt("请粘贴进度码：");
-                if(!code) return;
-                try {
-                    const json = LZString.decompressFromEncodedURIComponent(code);
-                    const data = JSON.parse(json);
-                    if(data.lib && Array.isArray(data.lib)) {
-                        DB.data = data;
-                        DB.save();
-                        alert("✅ 同步成功！数据已更新。");
-                    } else { alert("❌ 无效的进度码"); }
-                } catch(e) { alert("❌ 解析失败，请确认代码完整。"); }
-            },
-
             resetData() {
-                if(confirm("⚠️ 严重警告：清空所有数据？")) {
-                    if(confirm("再次确认：清空后无法恢复！")) {
+                if(confirm("⚠️ 警告：即清空所有数据！建议先【导出进度】。\n\n确定要重置吗？")) {
+                    if(confirm("再次确认：真的要清空吗？")) {
                         localStorage.removeItem(DB.key);
                         location.reload();
                     }
@@ -240,30 +234,51 @@
                 f.name.endsWith('.docx') ? r.readAsArrayBuffer(f) : r.readAsText(f);
             },
             parseManual() { this.parse(document.getElementById('manual-text').value); },
+            
+            // 🌟 核心升级：智能解析函数 🌟
             parse(txt) {
                 const list = [];
                 const lines = txt.split(/[\r\n]+/);
+                
                 lines.forEach(line => {
                     const parts = line.trim().split(/\s+/);
                     if (parts.length === 0 || parts[0] === "") return;
-                    let word = "", chunks = null, trans = "";
+
+                    let word = "";
+                    let chunks = null;
+                    let trans = "";
+
+                    // 1. 检测有没有带斜杠的部分 (hand/some)
                     const splitPart = parts.find(p => p.includes('/'));
+
                     if (splitPart) {
+                        // 发现手动拆分！
                         chunks = splitPart.split('/').map(c => c.toLowerCase());
-                        word = chunks.join(''); 
+                        word = chunks.join(''); // 还原单词 handsome
+                        
+                        // 移除已解析的 splitPart，剩下的通常是 单词本身(handsome) 和 翻译(英俊的)
+                        // 我们需要过滤掉纯单词，剩下的就是翻译
                         const remaining = parts.filter(p => p !== splitPart && p.toLowerCase() !== word);
                         trans = remaining.join(' ');
                     } else {
+                        // 2. 没有斜杠，按传统方式 (handsome 英俊的)
+                        // 假设第一个是单词
                         const rawWord = parts[0];
+                        // 简单校验：单词里应该有字母
                         if (/[a-zA-Z]/.test(rawWord)) {
                             word = rawWord.toLowerCase();
-                            chunks = null;
+                            chunks = null; // 让 DB.add 去自动拆分
                             trans = parts.slice(1).join(' ');
                         }
                     }
-                    if (word) list.push({ word, chunks, trans });
+
+                    if (word) {
+                        list.push({ word, chunks, trans });
+                    }
                 });
-                if(list.length) { DB.add(list); App.switchView('dashboard'); } else alert("未识别到有效单词");
+
+                if(list.length) { DB.add(list); App.switchView('dashboard'); } 
+                else alert("未识别到有效单词，请检查格式");
             }
         };
 
