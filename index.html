@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自然拼读 Pro - V19 云同步版</title>
+    <title>自然拼读 Pro - V19 跨设备同步版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+    <!-- 引入压缩库，让进度码更短 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
         :root {
             --primary: #7b61ff;
@@ -34,22 +36,18 @@
         .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; gap: 40px; }
         .instruction { font-size: 28px; color: #888; font-weight: 500; margin-top: 20px; }
 
-        /* 云同步与数据管理区 */
-        .data-management { margin-top: 40px; padding-top: 30px; border-top: 2px dashed #e0e0e0; text-align: center; color: #666; }
-        .data-btn { background: white; border: 1px solid #ccc; padding: 8px 20px; border-radius: 20px; cursor: pointer; margin: 0 10px; font-size: 14px; color: #555; transition: all 0.2s; }
-        .data-btn:hover { border-color: var(--primary); color: var(--primary); }
-        
-        .cloud-panel { background: #f0f5ff; padding: 20px; border-radius: 15px; margin-top: 20px; display: none; }
-        .cloud-panel.show { display: block; animation: fadeIn 0.3s; }
-        .cloud-input { padding: 10px; width: 300px; border-radius: 5px; border: 1px solid #ccc; }
-        .btn-cloud { background: var(--primary); color: white; border: none; }
+        /* 数据管理区 */
+        .data-management { margin-top: 60px; padding-top: 30px; border-top: 2px dashed #e0e0e0; text-align: center; color: #666; }
+        .data-btn { background: white; border: 1px solid #ccc; padding: 10px 25px; border-radius: 25px; cursor: pointer; margin: 0 10px; font-size: 14px; color: #555; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .data-btn:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-2px); }
+        .btn-reset { border-color: #ffccc7; color: var(--danger); }
+        .btn-reset:hover { background: var(--danger); color: white; border-color: var(--danger); }
 
-        @keyframes fadeIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
-
-        /* 输入框组件 */
+        /* 输入框与视觉层 */
         .rich-input-wrapper { 
             position: relative; display: inline-block; margin: 0 10px; 
-            background: white; border-radius: 20px; border: 5px solid #ccc;
+            background: white; 
+            border-radius: 20px; border: 5px solid #ccc;
             box-shadow: 0 8px 20px rgba(0,0,0,0.08); cursor: text;
             transition: all 0.2s;
         }
@@ -71,6 +69,7 @@
         .ghost-input:not(:focus) + .visual-layer .cursor { display: none; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         .rich-input-wrapper:focus-within { border-color: var(--primary); box-shadow: 0 0 0 6px rgba(123,97,255,0.2); }
+        
         .rich-input-wrapper.correct { 
             border-color: var(--success) !important; 
             background-color: var(--success-bg) !important; 
@@ -114,39 +113,30 @@
 
             <!-- 数据管理 -->
             <div class="data-management">
-                <div style="margin-bottom:15px;">
-                    <button class="data-btn" onclick="document.getElementById('cloud-panel').classList.toggle('show')">☁️ GitHub 云同步</button>
-                    <button class="data-btn" onclick="DataManager.exportData()">⬇️ 本地备份</button>
-                    <button class="data-btn" onclick="document.getElementById('backup-input').click()">⬆️ 本地恢复</button>
-                    <button class="data-btn" style="color:red; border-color:red;" onclick="DataManager.resetData()">⚠️ 清空重置</button>
+                <h4 style="margin-bottom: 20px;">☁️ 进度同步与备份</h4>
+                <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                    <button class="data-btn" onclick="DataManager.copyCode()">📋 复制进度码 (同步用)</button>
+                    <button class="data-btn" onclick="DataManager.loadCode()">📥 读取进度码</button>
+                    <button class="data-btn" onclick="DataManager.exportData()">💾 导出备份文件</button>
+                    <button class="data-btn btn-reset" onclick="DataManager.resetData()">⚠️ 清空重置</button>
                 </div>
-
-                <!-- 云同步面板 -->
-                <div id="cloud-panel" class="cloud-panel">
-                    <p style="font-size:14px;">请输入您的 GitHub Token (以 ghp_ 开头)：</p>
-                    <input type="password" id="github-token" class="cloud-input" placeholder="在此粘贴 Token">
-                    <div style="margin-top:15px;">
-                        <button class="data-btn btn-cloud" onclick="CloudManager.upload()">⬆️ 上传进度到云端</button>
-                        <button class="data-btn btn-cloud" onclick="CloudManager.download()">⬇️ 从云端下载进度</button>
-                    </div>
-                    <p id="cloud-status" style="font-size:12px; margin-top:10px; color:#666;"></p>
-                </div>
-
-                <input type="file" id="backup-input" hidden accept=".json" onchange="DataManager.importData(this.files[0])">
+                <p style="font-size: 12px; margin-top: 10px; color: #999;">
+                    提示：在公司电脑点“复制进度码”，发到微信；回家电脑点“读取进度码”粘贴即可同步。
+                </p>
             </div>
         </div>
     </div>
 
-    <!-- 导入界面 -->
     <div id="view-import" class="view-section">
         <div class="dashboard-container">
             <h2 style="text-align:center">导入新单词</h2>
             <div class="drop-zone" onclick="document.getElementById('file-input').click()">
-                <div style="font-size:30px">📄</div><div>点击上传 Word / Txt</div>
+                <div style="font-size:30px">📄</div>
+                <div>点击上传 Word / Txt</div>
                 <div id="file-name" style="color:var(--primary); margin-top:10px; font-weight:bold;"></div>
             </div>
             <input type="file" id="file-input" hidden accept=".docx,.txt" onchange="Importer.handleFile(this.files[0])">
-            <textarea id="manual-text" placeholder="格式: hand/some 英俊的" style="width:100%; height:150px; margin:20px 0; padding:10px; font-family: monospace;"></textarea>
+            <textarea id="manual-text" placeholder="格式: apple 苹果" style="width:100%; height:150px; margin:20px 0; padding:10px; font-family: monospace;"></textarea>
             <div style="text-align:center;">
                 <button class="menu-btn btn-primary" onclick="Importer.parseManual()">确定</button>
                 <button class="menu-btn" onclick="App.switchView('dashboard')">返回</button>
@@ -154,11 +144,14 @@
         </div>
     </div>
 
-    <!-- 练习界面 -->
     <div id="view-practice" class="view-section">
         <div class="header">
             <button onclick="App.endSession()" style="padding:5px 15px; cursor:pointer;">Esc 退出</button>
-            <div class="step-indicators"><div id="ind-1" class="step-ind">1. 读</div><div id="ind-2" class="step-ind">2. 分</div><div id="ind-3" class="step-ind">3. 写</div></div>
+            <div class="step-indicators">
+                <div id="ind-1" class="step-ind">1. 读</div>
+                <div id="ind-2" class="step-ind">2. 分</div>
+                <div id="ind-3" class="step-ind">3. 写</div>
+            </div>
             <div>剩余: <b id="remain-count">0</b></div>
         </div>
         <div class="stage" id="stage"></div>
@@ -169,7 +162,7 @@
         const DICT = {"apple":"苹果","banana":"香蕉","cat":"猫","dog":"狗","elephant":"大象","fish":"鱼","girl":"女孩","hello":"你好","ice":"冰","juice":"果汁","kite":"风筝","lion":"狮子","monkey":"猴子","nose":"鼻子","orange":"橙子","pig":"猪","queen":"女王","rabbit":"兔子","sun":"太阳","tiger":"老虎","umbrella":"雨伞","van":"货车","water":"水","box":"盒子","yellow":"黄色","zoo":"动物园","welcome":"欢迎","student":"学生","teacher":"老师","school":"学校","pizza":"披萨","hamburger":"汉堡","computer":"电脑","friend":"朋友"};
 
         const DB = {
-            key: 'phonics_pro_v19_cloud',
+            key: 'phonics_pro_v19_sync',
             data: { lib: [], config: { planDays: 21 } },
             load() { const r = localStorage.getItem(this.key); if(r) this.data = JSON.parse(r); },
             save() { localStorage.setItem(this.key, JSON.stringify(this.data)); App.updateUI(); },
@@ -188,122 +181,56 @@
             split(w) { return w.length<=4 ? [w] : (w.toLowerCase().match(/[^aeiouy]*[aeiouy]+(?:[^aeiouy]*$|[^aeiouy](?=[^aeiouy]))?/gi) || [w]); }
         };
 
-        // ==================== GitHub 云同步管理器 ====================
-        const CloudManager = {
-            GIST_FILENAME: "phonics_pro_data.json",
-            
-            async upload() {
-                const token = document.getElementById('github-token').value.trim();
-                if(!token) return alert("请输入 GitHub Token");
-                
-                this.setStatus("正在连接 GitHub...");
-                
-                try {
-                    // 1. 检查是否已存在 Gist
-                    const gists = await this.fetchGists(token);
-                    let targetGist = gists.find(g => g.files[this.GIST_FILENAME]);
-                    
-                    const content = JSON.stringify(DB.data);
-                    
-                    if(targetGist) {
-                        // 更新
-                        this.setStatus("正在上传数据...");
-                        await this.updateGist(token, targetGist.id, content);
-                        alert("✅ 云端同步成功！(已更新)");
-                    } else {
-                        // 创建
-                        this.setStatus("正在创建云端存档...");
-                        await this.createGist(token, content);
-                        alert("✅ 云端同步成功！(新创建)");
-                    }
-                    this.setStatus("");
-                    // 保存Token方便下次使用
-                    localStorage.setItem('phonics_gh_token', token);
-                } catch(e) {
-                    alert("❌ 同步失败：" + e.message);
-                    this.setStatus("失败");
-                }
-            },
-
-            async download() {
-                const token = document.getElementById('github-token').value.trim();
-                if(!token) return alert("请输入 GitHub Token");
-                this.setStatus("正在查找云端数据...");
-                
-                try {
-                    const gists = await this.fetchGists(token);
-                    const targetGist = gists.find(g => g.files[this.GIST_FILENAME]);
-                    
-                    if(!targetGist) throw new Error("未找到云端存档，请先上传。");
-                    
-                    const fileUrl = targetGist.files[this.GIST_FILENAME].raw_url;
-                    const res = await fetch(fileUrl);
-                    const cloudData = await res.json();
-                    
-                    if(confirm("⚠️ 确定要用云端数据覆盖本地数据吗？")) {
-                        DB.data = cloudData;
-                        DB.save();
-                        alert("✅ 下载并覆盖成功！");
-                    }
-                    this.setStatus("");
-                    localStorage.setItem('phonics_gh_token', token);
-                } catch(e) {
-                    alert("❌ 下载失败：" + e.message);
-                    this.setStatus("失败");
-                }
-            },
-
-            // API 辅助函数
-            async fetchGists(token) {
-                const res = await fetch('https://api.github.com/gists', {
-                    headers: { 'Authorization': `token ${token}` }
-                });
-                if(!res.ok) throw new Error("Token 无效或网络错误");
-                return await res.json();
-            },
-            async createGist(token, content) {
-                const files = {}; files[this.GIST_FILENAME] = { content: content };
-                await fetch('https://api.github.com/gists', {
-                    method: 'POST',
-                    headers: { 'Authorization': `token ${token}` },
-                    body: JSON.stringify({ description: "Phonics Pro Data", public: false, files: files })
-                });
-            },
-            async updateGist(token, id, content) {
-                const files = {}; files[this.GIST_FILENAME] = { content: content };
-                await fetch(`https://api.github.com/gists/${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Authorization': `token ${token}` },
-                    body: JSON.stringify({ files: files })
-                });
-            },
-            setStatus(msg) { document.getElementById('cloud-status').innerText = msg; }
-        };
-
-        // 本地数据管理
+        // ==================== 数据管理：进度码功能 ====================
         const DataManager = {
+            // 1. 导出文件
             exportData() {
-                const blob = new Blob([JSON.stringify(DB.data)], {type: "application/json"});
+                const dataStr = JSON.stringify(DB.data);
+                const blob = new Blob([dataStr], {type: "application/json"});
+                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
+                a.href = url;
                 a.download = `phonics_backup.json`;
                 a.click();
+                URL.revokeObjectURL(url);
             },
-            importData(file) {
-                if(!file) return;
-                const r = new FileReader();
-                r.onload = e => {
-                    try { DB.data = JSON.parse(e.target.result); DB.save(); alert("恢复成功"); }
-                    catch(err) { alert("文件错误"); }
-                };
-                r.readAsText(file);
+            
+            // 2. 复制进度码 (压缩字符串)
+            copyCode() {
+                const json = JSON.stringify(DB.data);
+                const code = LZString.compressToEncodedURIComponent(json);
+                navigator.clipboard.writeText(code).then(() => {
+                    alert("✅ 进度码已复制！\n\n请发送给微信/QQ文件助手，在另一台电脑上使用【读取进度码】恢复。");
+                }).catch(err => {
+                    prompt("复制失败，请手动复制框内代码：", code);
+                });
             },
+
+            // 3. 读取进度码
+            loadCode() {
+                const code = prompt("请粘贴进度码：");
+                if(!code) return;
+                try {
+                    const json = LZString.decompressFromEncodedURIComponent(code);
+                    const data = JSON.parse(json);
+                    if(data.lib && Array.isArray(data.lib)) {
+                        DB.data = data;
+                        DB.save();
+                        alert("✅ 同步成功！数据已更新。");
+                    } else { alert("❌ 无效的进度码"); }
+                } catch(e) { alert("❌ 解析失败，请确认代码完整。"); }
+            },
+
             resetData() {
-                if(confirm("⚠️ 警告：清空所有数据？")) { localStorage.removeItem(DB.key); location.reload(); }
+                if(confirm("⚠️ 严重警告：清空所有数据？")) {
+                    if(confirm("再次确认：清空后无法恢复！")) {
+                        localStorage.removeItem(DB.key);
+                        location.reload();
+                    }
+                }
             }
         };
 
-        // Importer, Practice, App 逻辑保持不变 (复用 V18)
         const Importer = {
             handleFile(f) {
                 if(!f) return; document.getElementById('file-name').innerText = f.name;
@@ -315,88 +242,176 @@
             parseManual() { this.parse(document.getElementById('manual-text').value); },
             parse(txt) {
                 const list = [];
-                txt.split(/[\r\n]+/).forEach(l => {
-                    const p = l.trim().split(/\s+/);
-                    if(p.length===0 || !p[0]) return;
-                    let w="", c=null, t="";
-                    const sp = p.find(x=>x.includes('/'));
-                    if(sp) {
-                        c = sp.split('/').map(s=>s.toLowerCase()); w = c.join('');
-                        t = p.filter(x=>x!==sp && x.toLowerCase()!==w).join(' ');
+                const lines = txt.split(/[\r\n]+/);
+                lines.forEach(line => {
+                    const parts = line.trim().split(/\s+/);
+                    if (parts.length === 0 || parts[0] === "") return;
+                    let word = "", chunks = null, trans = "";
+                    const splitPart = parts.find(p => p.includes('/'));
+                    if (splitPart) {
+                        chunks = splitPart.split('/').map(c => c.toLowerCase());
+                        word = chunks.join(''); 
+                        const remaining = parts.filter(p => p !== splitPart && p.toLowerCase() !== word);
+                        trans = remaining.join(' ');
                     } else {
-                        if(/[a-zA-Z]/.test(p[0])) { w=p[0].toLowerCase(); t=p.slice(1).join(' '); }
+                        const rawWord = parts[0];
+                        if (/[a-zA-Z]/.test(rawWord)) {
+                            word = rawWord.toLowerCase();
+                            chunks = null;
+                            trans = parts.slice(1).join(' ');
+                        }
                     }
-                    if(w) list.push({word:w, chunks:c, trans:t});
+                    if (word) list.push({ word, chunks, trans });
                 });
-                if(list.length) { DB.add(list); App.switchView('dashboard'); } else alert("格式错误");
+                if(list.length) { DB.add(list); App.switchView('dashboard'); } else alert("未识别到有效单词");
             }
         };
 
         const Practice = {
-            queue: [], idx: 0, step: 1, canNext: false, sessionErr: 0, mode: 'learning', currentWordHasError: false, 
-            start(list, mode) { this.queue = list; this.idx = 0; this.sessionErr = 0; this.mode = mode; this.loadWord(0); document.addEventListener('keydown', this.handleKey); },
+            queue: [], idx: 0, step: 1, canNext: false, sessionErr: 0, mode: 'learning',
+            currentWordHasError: false, 
+
+            start(list, mode) {
+                this.queue = list; this.idx = 0; this.sessionErr = 0; this.mode = mode;
+                this.loadWord(0); document.addEventListener('keydown', this.handleKey);
+            },
             stop() { document.removeEventListener('keydown', this.handleKey); App.switchView('dashboard'); },
             handleKey(e) {
                 if(e.key === 'Escape') { App.endSession(); return; }
+                if(Practice.mode === 'summary' && e.key === 'Enter') { Practice.stop(); return; }
                 if(Practice.mode !== 'summary' && e.key === 'Enter') { if(Practice.canNext) Practice.next(); }
             },
-            loadWord(i) { this.idx = i; this.step = 1; this.canNext = false; this.currentWordHasError = false; document.getElementById('remain-count').innerText = this.queue.length - i; this.render(); },
+            loadWord(i) {
+                this.idx = i; this.step = 1; this.canNext = false; this.currentWordHasError = false;
+                document.getElementById('remain-count').innerText = this.queue.length - i;
+                this.render();
+            },
             setCanNext(b) { this.canNext = b; document.getElementById('enter-tip').classList.toggle('show', b); },
+
             render() {
-                const data = this.queue[this.idx]; const stage = document.getElementById('stage'); stage.innerHTML = '';
+                const data = this.queue[this.idx];
+                const stage = document.getElementById('stage');
+                stage.innerHTML = '';
                 [1,2,3].forEach(n => document.getElementById(`ind-${n}`).className = `step-ind ${n===this.step?'active':''}`);
-                if(this.step===1) {
+
+                if(this.step === 1) {
                     this.setCanNext(true);
-                    stage.innerHTML = `<div style="display:flex;gap:15px">${data.chunks.map(c=>`<div class="rich-input-wrapper" style="width:${Math.max(120,c.length*70)}px;height:160px;border-color:var(--primary)"><div class="visual-layer" style="line-height:160px">${this.color(c)}</div></div>`).join('')}</div><div class="instruction">${data.trans||"暂无"}</div>`;
-                    setTimeout(()=>this.speak(data.word),100);
-                } else if(this.step===2) {
+                    const wordBox = document.createElement('div');
+                    wordBox.style.display = 'flex'; wordBox.style.gap = '15px';
+                    wordBox.innerHTML = data.chunks.map(c=>
+                        `<div class="rich-input-wrapper" style="width:${Math.max(120, c.length*70)}px; height:160px; border-color:var(--primary);">
+                            <div class="visual-layer" style="line-height:160px;">${this.color(c)}</div>
+                         </div>`
+                    ).join('');
+                    stage.appendChild(wordBox);
+                    const transBox = document.createElement('div');
+                    transBox.className = 'instruction'; transBox.innerText = data.trans || "暂无释义";
+                    stage.appendChild(transBox);
+                    setTimeout(() => this.speak(data.word), 100);
+                }
+                else if(this.step === 2) {
                     this.setCanNext(false);
-                    const box=document.createElement('div'); box.style.display='flex'; box.style.alignItems='center';
-                    data.chunks.forEach((c,k)=>{
-                        if(k>0) { const s=document.createElement('div'); s.innerHTML='-'; s.style.fontSize='40px'; s.style.color='#ccc'; s.style.margin='0 10px'; box.appendChild(s); }
-                        const {wrapper,input}=this.createGhostInput(c.length,`s${k}`); input.disabled=(k!==0);
-                        input.addEventListener('input',()=>{
-                            if(input.value.toLowerCase()===c) { wrapper.classList.add('correct'); input.disabled=true; const n=document.getElementById(`s${k+1}`); if(n){n.disabled=false;n.focus();this.speak(data.chunks[k+1]);}else{this.setCanNext(true);this.speak('Good');} }
-                            else if(input.value.length>=c.length) this.triggerError(wrapper);
+                    const container = document.createElement('div');
+                    container.style.display='flex'; container.style.alignItems='center';
+                    data.chunks.forEach((chunk, k) => {
+                        if(k>0) {
+                            const sep = document.createElement('div'); sep.innerHTML = '-'; 
+                            sep.style.fontSize='40px'; sep.style.color='#ccc'; sep.style.margin='0 10px';
+                            container.appendChild(sep);
+                        }
+                        const {wrapper, input} = this.createGhostInput(chunk.length, `seg-${k}`);
+                        input.disabled = (k!==0);
+                        input.addEventListener('input', () => {
+                            if(input.value.toLowerCase() === chunk) {
+                                wrapper.classList.add('correct'); input.disabled=true;
+                                const next = document.getElementById(`seg-${k+1}`);
+                                if(next) { next.disabled=false; next.focus(); this.speak(data.chunks[k+1]); }
+                                else { this.setCanNext(true); this.speak('Good'); }
+                            } else if(input.value.length >= chunk.length) { this.triggerError(wrapper); }
                         });
-                        input.addEventListener('keydown',e=>{if(e.key==='Enter')e.preventDefault()}); box.appendChild(wrapper);
+                        input.addEventListener('keydown', e => { if(e.key==='Enter') e.preventDefault(); });
+                        container.appendChild(wrapper);
                     });
-                    stage.appendChild(box); stage.innerHTML+=`<div class="instruction">分段拼写</div>`;
-                    setTimeout(()=>{const f=document.getElementById('s0');if(f)f.focus();this.speak(data.chunks[0]);},100);
-                } else if(this.step===3) {
+                    stage.appendChild(container);
+                    const label = document.createElement('div'); label.className = 'instruction'; label.innerText = "分段拼写"; stage.appendChild(label);
+                    setTimeout(() => { const f = document.getElementById('seg-0'); if(f) f.focus(); this.speak(data.chunks[0]); }, 100);
+                }
+                else if(this.step === 3) {
                     this.setCanNext(false);
-                    const {wrapper,input}=this.createGhostInput(data.word.length,'full'); wrapper.style.width='700px';
-                    input.addEventListener('keydown',e=>{
-                        if(e.key==='Enter') { e.stopPropagation();
-                            if(this.canNext){Practice.next();return;}
-                            if(input.value.toLowerCase()===data.word){wrapper.classList.add('correct');input.disabled=true;this.saveResult(data);this.speak('Excellent');this.setCanNext(true);}
-                            else{this.triggerError(wrapper);}
+                    const {wrapper, input} = this.createGhostInput(data.word.length, 'full');
+                    wrapper.style.width = '700px'; 
+                    input.addEventListener('keydown', e => {
+                        if(e.key === 'Enter') {
+                            e.stopPropagation();
+                            if(this.canNext) { Practice.next(); return; }
+                            if(input.value.toLowerCase() === data.word) {
+                                wrapper.classList.add('correct'); input.disabled=true;
+                                this.saveResult(data); 
+                                this.speak('Excellent');
+                                this.setCanNext(true);
+                            } else { this.triggerError(wrapper); }
                         }
                     });
-                    stage.appendChild(wrapper); stage.innerHTML+=`<div class="instruction">听音默写</div>`;
-                    setTimeout(()=>{input.focus();this.speak(data.word);},100);
+                    stage.appendChild(wrapper);
+                    const label = document.createElement('div'); label.className = 'instruction'; label.innerText = "听音默写"; stage.appendChild(label);
+                    setTimeout(() => { input.focus(); this.speak(data.word); }, 100);
                 }
             },
-            createGhostInput(l,id){
-                const w=document.createElement('div');w.className='rich-input-wrapper';w.style.width=Math.max(140,l*70)+'px';w.style.height='160px';
-                const i=document.createElement('input');i.className='ghost-input';i.maxLength=l;i.id=id;i.autocomplete="off";
-                const v=document.createElement('div');v.className='visual-layer';v.innerHTML=`<span class="cursor"></span>`;
-                i.addEventListener('input',()=>{let h=this.color(i.value);if(i.value.length<l)h+=`<span class="cursor"></span>`;v.innerHTML=h;});
-                w.append(i,v); return {wrapper:w,input:i};
+
+            createGhostInput(len, id) {
+                const w = document.createElement('div'); w.className = 'rich-input-wrapper';
+                w.style.width = Math.max(140, len * 70) + 'px'; w.style.height = '160px';
+                const inp = document.createElement('input'); inp.className = 'ghost-input';
+                inp.maxLength = len; inp.id = id; inp.autocomplete = "off";
+                const vis = document.createElement('div'); vis.className = 'visual-layer';
+                vis.innerHTML = `<span class="cursor"></span>`;
+                inp.addEventListener('input', () => {
+                    let html = this.color(inp.value);
+                    if (inp.value.length < len) html += `<span class="cursor"></span>`;
+                    vis.innerHTML = html;
+                });
+                w.append(inp, vis);
+                return {wrapper:w, input:inp};
             },
-            triggerError(w){ w.classList.add('error'); this.speak('Try again'); this.currentWordHasError=true; const i=DB.data.lib.find(x=>x.word===this.queue[this.idx].word); if(i)i.err++; DB.save(); setTimeout(()=>{this.step=1;this.render();},1000); },
-            saveResult(d){ const i=DB.data.lib.find(x=>x.word===d.word); if(i){ if(this.mode==='review'&&!this.currentWordHasError&&i.err>0)i.err--; i.status=1; DB.save(); } },
-            next(){ if(this.step<3){this.step++;this.render();}else{if(this.idx<this.queue.length-1)this.loadWord(this.idx+1);else this.showSummary();} },
-            showSummary(){ this.mode='summary'; document.getElementById('stage').innerHTML=`<div class="summary-card"><h1>🎉 完成</h1><p style="color:#999">按 Enter 返回</p></div>`; this.setCanNext(false); },
-            color(t){return t?t.split('').map(c=>`<span class="${/[aeiouy]/i.test(c)?'v':'c'}">${c}</span>`).join(''):'';},
-            speak(t){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=1.0;window.speechSynthesis.speak(u);}
+
+            triggerError(wrapper) {
+                wrapper.classList.add('error'); this.speak('Try again');
+                this.currentWordHasError = true; 
+                const dbItem = DB.data.lib.find(w => w.word === this.queue[this.idx].word);
+                if(dbItem) dbItem.err++; 
+                DB.save();
+                setTimeout(() => { this.step = 1; this.render(); }, 1000);
+            },
+
+            saveResult(data) {
+                const dbItem = DB.data.lib.find(w => w.word === data.word);
+                if(!dbItem) return;
+                if (this.mode === 'review' && !this.currentWordHasError) {
+                    if(dbItem.err > 0) dbItem.err--;
+                }
+                dbItem.status = 1; 
+                DB.save();
+            },
+
+            next() {
+                if(this.step < 3) { this.step++; this.render(); }
+                else { if(this.idx < this.queue.length-1) this.loadWord(this.idx+1); else this.showSummary(); }
+            },
+            showSummary() {
+                this.mode = 'summary';
+                document.getElementById('stage').innerHTML = `<div class="summary-card"><h1>🎉 完成</h1><p style="color:#999">按 Enter 返回</p></div>`;
+                this.setCanNext(false);
+            },
+            color(t) { return t ? t.split('').map(c=>`<span class="${/[aeiouy]/i.test(c)?'v':'c'}">${c}</span>`).join('') : ''; },
+            speak(t) { window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; u.rate=1.0; window.speechSynthesis.speak(u); }
         };
 
         const App = {
             init() { 
                 DB.load(); this.updateUI(); 
-                const t = localStorage.getItem('phonics_gh_token'); if(t) document.getElementById('github-token').value = t;
-                document.addEventListener('keydown', e => { if(document.getElementById('view-dashboard').classList.contains('active') && e.key === 'Enter') App.start('daily'); });
+                document.addEventListener('keydown', (e) => {
+                    if(document.getElementById('view-dashboard').classList.contains('active') && e.key === 'Enter') { App.start('daily'); }
+                });
             },
             switchView(id) { document.querySelectorAll('.view-section').forEach(e=>e.classList.remove('active')); document.getElementById('view-'+id).classList.add('active'); this.updateUI(); },
             updateUI() {
@@ -409,13 +424,21 @@
             },
             saveConfig() { DB.data.config.planDays = document.getElementById('plan-days').value; DB.save(); },
             start(mode) {
-                const l = DB.data.lib; let list = [];
+                const l = DB.data.lib;
+                let list = [];
                 if(mode==='daily') {
-                    let p = l.filter(w=>w.status==0);
-                    if(!p.length) { if(confirm("新词已学完！是否复习？")) p=l.filter(w=>w.status==1); else return; }
-                    const c = parseInt(document.getElementById('daily-target').innerText)||10; const r=document.getElementById('learn-order').value==='random';
-                    list = r ? p.sort(()=>0.5-Math.random()).slice(0,c) : p.slice(0,c);
-                } else { list = l.filter(w=>w.err>0); if(!list.length) return alert("无错题"); }
+                    let pool = l.filter(w=>w.status==0);
+                    if(pool.length === 0) {
+                        if(confirm("新词已学完！是否复习已学单词？")) pool = l.filter(w=>w.status==1);
+                        else return;
+                    }
+                    const c = parseInt(document.getElementById('daily-target').innerText) || 10;
+                    const rnd = document.getElementById('learn-order').value==='random';
+                    list = rnd ? pool.sort(()=>0.5-Math.random()).slice(0,c) : pool.slice(0,c);
+                } else {
+                    list = l.filter(w=>w.err>0);
+                    if(!list.length) return alert("没有错题");
+                }
                 App.switchView('practice'); Practice.start(list, mode);
             },
             endSession() { if(confirm("退出?")) { Practice.stop(); App.switchView('dashboard'); } }
